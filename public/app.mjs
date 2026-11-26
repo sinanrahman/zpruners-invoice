@@ -144,6 +144,7 @@ function showEditor() {
   $('editor').hidden = false;
   $('history').hidden = true;
   $('editor-nav').hidden = true;
+  $('back-home').hidden = false;
   $('history-nav').removeAttribute('aria-current');
   editorTitle();
 }
@@ -226,10 +227,12 @@ $('logo-file').addEventListener('change', async () => {
 });
 
 $('editor-nav').addEventListener('click', showEditor);
+$('back-home').addEventListener('click', showHistory);
 function showHistory() {
   $('editor').hidden = true;
   $('history').hidden = false;
   $('editor-nav').hidden = !editorReady;
+  $('back-home').hidden = true;
   $('history-nav').setAttribute('aria-current','page');
   $('page-title').textContent = 'Invoices';
   searchHistory();
