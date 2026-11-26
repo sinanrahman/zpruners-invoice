@@ -1,0 +1,21 @@
+{
+  "name": "zpruners-invoices",
+  "version": "1.0.0",
+  "description": "Zpruners invoice editor with MongoDB storage",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "check": "node --check server.mjs && node --check public/app.mjs && node --check public/totals.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mongodb": "^6.17.0"
+  }
+}

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zpruners Invoices</title><link rel="stylesheet" href="/styles.css"><script type="module" src="/app.mjs"></script></head>
+<body>
+<header class="navbar">
+  <nav aria-label="Workspace"><a href="/" id="home-nav" aria-label="Zpruners invoices home"><img src="/brand/wordmark.png" alt="Zpruners"></a><button type="button" id="history-nav" aria-current="page">Invoices</button></nav>
+</header>
+<main>
+  <header class="page-header"><h1 id="page-title">Invoices</h1><button type="button" id="editor-nav" hidden>Back to editor</button></header>
+  <div id="editor" class="workspace" hidden>
+    <form id="invoice" class="paper invoice-sheet">
+      <div class="invoice-head">
+        <div><img class="invoice-logo" src="/brand/wordmark.png" alt="Zpruners"><label class="logo-picker">Additional logo <input id="logo-file" type="file" accept="image/png,image/jpeg,image/webp"><img id="logo-image" alt="Additional business logo" hidden></label><button type="button" id="remove-logo" class="text-button" hidden>Remove additional logo</button></div>
+        <div class="invoice-id"><h2>Invoice</h2><label>Invoice number<input name="number" maxlength="80" required></label></div>
+      </div>
+      <div class="grid parties">
+        <label>From<textarea name="from" required maxlength="2000" placeholder="Business name and address"></textarea></label>
+        <label>Bill to<textarea name="to" required maxlength="2000" placeholder="Customer name and address"></textarea></label>
+        <label>Ship to <small>Optional</small><textarea name="shipTo" maxlength="2000" placeholder="Shipping name and address"></textarea></label>
+      </div>
+      <div class="grid meta">
+        <label>Invoice date<input name="date" type="date" required></label>
+        <label>Due date<input name="due" type="date"></label>
+        <label>Payment terms<input name="payment" maxlength="120" placeholder="e.g. Net 30"></label>
+        <label>Purchase order<input name="po" maxlength="120" placeholder="PO number"></label>
+      </div>
+      <section class="items"><h3>Line items</h3>
+        <table><thead><tr><th scope="col">Description</th><th scope="col">Qty</th><th scope="col">Rate</th><th scope="col">Amount</th><th scope="col"><span class="sr-only">Remove item</span></th></tr></thead><tbody id="items"></tbody></table>
+        <button class="add" id="add" type="button">+ Add line item</button>
+      </section>
+      <div class="grid bottom">
+        <div class="notes"><label>Notes<textarea name="notes" maxlength="4000" placeholder="Add a note for your customer"></textarea></label><label>Terms<textarea name="terms" maxlength="4000" placeholder="Payment instructions or conditions"></textarea></label></div>
+        <div class="adjustments">
+          <label>Discount<span class="discount"><input name="discount" type="number" min="0" max="100" step="any" value="0"><select name="discountMode" aria-label="Discount type"><option value="percent">%</option><option value="fixed">Fixed</option></select></span></label>
+          <label>Tax (%)<input name="tax" type="number" min="0" max="100" step="any" value="0"></label>
+          <label>Shipping<input name="shipping" type="number" min="0" max="100000000" step="any" value="0"></label>
+          <label>Amount paid<input name="paid" type="number" min="0" max="100000000" step="any" value="0"></label>
+        </div>
+      </div>
+    </form>
+    <aside class="summary paper"><h2>Invoice summary</h2>
+      <label>Currency<select name="currency" form="invoice"><option value="INR">INR · Indian Rupee</option><option value="USD">USD · US Dollar</option><option value="EUR">EUR · Euro</option><option value="GBP">GBP · British Pound</option><option>CAD</option><option>AUD</option><option>AED</option><option>SGD</option><option>JPY</option><option>KWD</option></select></label>
+      <dl id="summary-totals"></dl>
+      <button type="submit" form="invoice" id="save" class="primary">Save invoice</button>
+      <button type="button" id="preview">Preview invoice</button>
+      <button type="button" id="delete" class="danger" hidden>Delete invoice</button>
+      <p id="status" role="status"></p>
+    </aside>
+  </div>
+  <section id="history" class="paper history" aria-label="Invoice list">
+    <form id="search-form" class="search-form" role="search">
+      <label for="search">Search invoices</label>
+      <input id="search" type="search" maxlength="100" placeholder="Invoice number or customer">
+    </form>
+    <div class="history-table-wrap">
+      <table class="history-table">
+        <thead><tr><th scope="col">Action</th><th scope="col">Invoice number</th><th scope="col">Customer</th><th scope="col">Date</th><th scope="col">Total</th></tr></thead>
+        <tbody id="history-list"></tbody>
+      </table>
+    </div>
+    <template id="create-row"><tr class="create-row"><td><button type="button" class="primary" data-create>+ Create new</button></td><td colspan="4"></td></tr></template>
+    <p id="history-status" role="status"></p><button id="more" type="button" hidden>Load more</button>
+  </section>
+</main>
+<dialog id="preview-dialog" aria-labelledby="preview-title"><div class="dialog-actions"><h2 id="preview-title">Invoice preview</h2><button type="button" id="share">Share</button><button type="button" id="print" class="primary">Print / PDF</button><form method="dialog"><button>Close</button></form></div><article id="print-invoice" class="invoice-sheet"></article></dialog>
+<dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message"><div class="confirm-body"><h2 id="confirm-title">Delete invoice?</h2><p id="confirm-message"></p><div class="confirm-actions"><button type="button" id="confirm-cancel">Cancel</button><button type="button" id="confirm-ok" class="danger-solid">Delete</button></div></div></dialog>
+<template id="item-template"><tr><td><input class="description" aria-label="Item description" placeholder="Product or service" required maxlength="500"></td><td><input class="quantity" aria-label="Quantity" type="number" min="0.001" max="100000" step="any" required></td><td><input class="rate" aria-label="Rate" type="number" min="0" max="1000000" step="any" required></td><td class="amount"></td><td><button type="button" class="remove" aria-label="Remove line item">×</button></td></tr></template>
+</body></html>
