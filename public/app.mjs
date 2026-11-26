@@ -435,9 +435,16 @@ async function shareInvoice({id, invoice, totals, number, statusId, button}) {
     const pdfTotals = totals || full.totals;
     const file = await createInvoicePdf(full, pdfTotals);
     if (navigator.canShare?.({files:[file]})) {
-      await navigator.share({title:'Invoice #' + (full.number || number), files:[file]});
-      if (statusId) status('Invoice PDF shared.', false, statusId);
-      return;
+      try {
+        await navigator.share({title:'Invoice #' + (full.number || number), files:[file]});
+        if (statusId) status('Invoice PDF shared.', false, statusId);
+        return;
+      } catch (shareError) {
+        if (shareError?.name === 'AbortError') {
+          if (statusId) status('', false, statusId);
+          return;
+        }
+      }
     }
     const href = URL.createObjectURL(file);
     const link = document.createElement('a');

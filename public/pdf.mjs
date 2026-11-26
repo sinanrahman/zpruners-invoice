@@ -24,6 +24,9 @@ async function loadImage(src) {
   return loaded;
 }
 
+loadImage('/brand/wordmark.png');
+loadImage('/brand/icon.png');
+
 function formatAmount(value, currency, scale) {
   const num = new Intl.NumberFormat('en-US', {
     minimumFractionDigits:scale === 1 ? 0 : scale === 1000 ? 3 : 2,
