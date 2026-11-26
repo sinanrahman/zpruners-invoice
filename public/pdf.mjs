@@ -24,8 +24,13 @@ async function loadImage(src) {
   return loaded;
 }
 
-loadImage('/brand/wordmark.png');
-loadImage('/brand/icon.png');
+export function preloadInvoiceAssets(logo) {
+  loadImage('/brand/wordmark.png');
+  loadImage('/brand/icon.png');
+  if (logo) loadImage(logo);
+}
+
+preloadInvoiceAssets();
 
 function formatAmount(value, currency, scale) {
   const num = new Intl.NumberFormat('en-US', {
@@ -40,7 +45,7 @@ function formatRate(value, currency) {
   return `${currency} ${num}`;
 }
 
-export async function createInvoicePdf(invoice, totals) {
+export function buildInvoicePdf(invoice, totals) {
   const JsPDF = window.jspdf?.jsPDF;
   if (!JsPDF) throw new Error('PDF generator is still loading. Try again.');
 
@@ -50,11 +55,9 @@ export async function createInvoicePdf(invoice, totals) {
   const margin = 40;
   const contentWidth = pageWidth - margin * 2;
 
-  const [wordmark, watermark, extraLogo] = await Promise.all([
-    loadImage('/brand/wordmark.png'),
-    loadImage('/brand/icon.png'),
-    loadImage(invoice.logo)
-  ]);
+  const wordmark = imageCache.get('/brand/wordmark.png') || null;
+  const watermark = imageCache.get('/brand/icon.png') || null;
+  const extraLogo = invoice.logo ? (imageCache.get(invoice.logo) || null) : null;
 
   const drawWatermark = () => {
     if (!watermark || !doc.GState) return;
@@ -225,4 +228,13 @@ export async function createInvoicePdf(invoice, totals) {
 
   const safeName = (invoice.number || 'invoice').replace(/[^a-zA-Z0-9._-]+/g, '-');
   return new File([doc.output('blob')], `${safeName}.pdf`, {type:'application/pdf'});
+}
+
+export async function createInvoicePdf(invoice, totals) {
+  await Promise.all([
+    loadImage('/brand/wordmark.png'),
+    loadImage('/brand/icon.png'),
+    invoice.logo ? loadImage(invoice.logo) : Promise.resolve(null)
+  ]);
+  return buildInvoicePdf(invoice, totals);
 }

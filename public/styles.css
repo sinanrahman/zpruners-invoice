@@ -57,6 +57,8 @@ main{max-width:1450px;margin:0 auto}
 .history-actions{display:flex;gap:8px;align-items:center}
 .history-actions .btn-icon{display:none}
 @media(max-width:680px){.history-actions{gap:6px}.history-actions button{padding:7px;display:inline-flex;align-items:center;justify-content:center}.history-actions .btn-icon{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.history-actions .btn-label{display:none}}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px}
+.icon-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .danger{color:#a32731;border-color:#e8c5c8}
 .danger:hover{background:#fdf2f3;border-color:#a32731}
 .danger-solid{background:#a32731;color:white;border-color:#a32731}

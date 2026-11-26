@@ -1,5 +1,5 @@
 import { calculate } from './totals.mjs';
-import { createInvoicePdf } from './pdf.mjs';
+import { buildInvoicePdf, createInvoicePdf, preloadInvoiceAssets } from './pdf.mjs';
 
 const $ = id => document.getElementById(id);
 const form = $('invoice');
@@ -14,6 +14,7 @@ let historyRequest = 0;
 let nextPage;
 let searchTimer;
 let editorReady = false;
+const invoiceCache = new Map();
 
 function element(tag, content, className) {
   const node = document.createElement(tag);
@@ -89,6 +90,7 @@ function changed() {
 
 function setLogo(value) {
   logo = value;
+  if (value) preloadInvoiceAssets(value);
   $('logo-image').hidden = !value;
   $('remove-logo').hidden = !value;
   if (value) $('logo-image').src = value;
@@ -184,6 +186,8 @@ form.addEventListener('submit', async event => {
       body:JSON.stringify({...invoice, version:current?.version})
     });
     current = {id:saved._id, version:saved.version};
+    invoiceCache.set(saved._id, saved);
+    preloadInvoiceAssets(saved.logo);
     dirty = JSON.stringify(invoice) !== JSON.stringify(data());
     if (!$('editor').hidden) editorTitle();
     status(dirty ? 'Saved. You have newer unsaved changes.' : 'Saved to MongoDB.');
@@ -334,6 +338,16 @@ async function loadHistory(cursor) {
           if (opening === historyRequest) status(error.message,true,'history-status');
         }
       });
+      const prefetchInvoice = () => {
+        if (invoiceCache.has(record._id)) return;
+        request('/' + record._id).then(full => {
+          invoiceCache.set(record._id, full);
+          preloadInvoiceAssets(full.logo);
+        }).catch(() => {});
+      };
+      share.addEventListener('pointerenter', prefetchInvoice);
+      share.addEventListener('focus', prefetchInvoice);
+      share.addEventListener('touchstart', prefetchInvoice, {passive:true});
       share.addEventListener('click', () => shareInvoice({
         id: record._id,
         number: record.number,
@@ -346,6 +360,7 @@ async function loadHistory(cursor) {
         status('Deleting invoice…', false, 'history-status');
         try {
           await request('/' + record._id, {method:'DELETE'});
+          invoiceCache.delete(record._id);
           if (current?.id === record._id) {
             current = null;
             dirty = false;
@@ -427,48 +442,70 @@ $('preview').addEventListener('click', () => {
   if (invoice.terms) target.append(printField('Terms',invoice.terms));
   $('preview-dialog').showModal();
 });
+function downloadPdfFile(file) {
+  const href = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+}
+
 async function shareInvoice({id, invoice, totals, number, statusId, button}) {
-  if (button) button.disabled = true;
-  if (statusId) status('Preparing PDF…', false, statusId);
+  const cached = invoice || (id ? invoiceCache.get(id) : null);
   try {
-    const full = invoice || await request('/' + id);
-    const pdfTotals = totals || full.totals;
-    const file = await createInvoicePdf(full, pdfTotals);
+    let file;
+    let invNumber = number;
+    if (cached) {
+      invNumber = cached.number || number;
+      file = buildInvoicePdf(cached, totals || cached.totals);
+    } else {
+      if (button) button.disabled = true;
+      if (statusId) status('Preparing PDF…', false, statusId);
+      const full = await request('/' + id);
+      invoiceCache.set(id, full);
+      invNumber = full.number || number;
+      file = await createInvoicePdf(full, full.totals);
+    }
+
     if (navigator.canShare?.({files:[file]})) {
-      try {
-        await navigator.share({title:'Invoice #' + (full.number || number), files:[file]});
-        if (statusId) status('Invoice PDF shared.', false, statusId);
-        return;
-      } catch (shareError) {
-        if (shareError?.name === 'AbortError') {
-          if (statusId) status('', false, statusId);
-          return;
-        }
-      }
+      await navigator.share({title:'Invoice #' + invNumber, files:[file]});
+      if (statusId) status('Invoice PDF shared.', false, statusId);
+      return;
     }
-    const href = URL.createObjectURL(file);
-    const link = document.createElement('a');
-    link.href = href;
-    link.download = file.name;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(href), 1000);
-    if (statusId) status('Invoice PDF downloaded.', false, statusId);
-    if (button) {
-      const textNode = button.querySelector('.btn-label') || button;
-      const label = textNode.textContent;
-      textNode.textContent = 'PDF saved';
-      setTimeout(() => { if (textNode.textContent === 'PDF saved') textNode.textContent = label; }, 1800);
-    }
+
+    const msg = 'Direct PDF sharing is not supported in this browser. Open Preview and use Download PDF.';
+    if (statusId) status(msg, true, statusId);
+    else alert(msg);
   } catch (error) {
     if (error?.name === 'AbortError') {
       if (statusId) status('', false, statusId);
       return;
     }
-    if (statusId) status(error.message || 'Could not share invoice PDF.', true, statusId);
+    const msg = error?.name === 'NotAllowedError'
+      ? 'Browser blocked direct sharing here. Open Preview and use Download PDF.'
+      : (error.message || 'Could not share invoice PDF.');
+    if (statusId) status(msg, true, statusId);
+    else alert(msg);
   } finally {
     if (button) button.disabled = false;
   }
 }
+
+$('download-pdf').addEventListener('click', async () => {
+  if (!validInvoice()) return;
+  const btn = $('download-pdf');
+  btn.disabled = true;
+  try {
+    const invoice = data();
+    const file = await createInvoicePdf(invoice, calculate(invoice));
+    downloadPdfFile(file);
+  } catch (error) {
+    alert(error.message || 'Could not generate PDF.');
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 $('share').addEventListener('click', () => {
   if (!validInvoice()) return;
