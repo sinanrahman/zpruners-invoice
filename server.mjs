@@ -7,6 +7,9 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({limit:'2mb'}));
 app.use(express.static(fileURLToPath(new URL('./public/', import.meta.url))));
+app.get('/vendor/jspdf.umd.min.js', (req, res) => {
+  res.sendFile(fileURLToPath(new URL('./node_modules/jspdf/dist/jspdf.umd.min.js', import.meta.url)));
+});
 
 const uri = process.env.MONGODB_URI?.trim();
 const client = uri ? new MongoClient(uri, {serverSelectionTimeoutMS:5000}) : null;

@@ -1,4 +1,5 @@
 import { calculate } from './totals.mjs';
+import { createInvoicePdf } from './pdf.mjs';
 
 const $ = id => document.getElementById(id);
 const form = $('invoice');
@@ -336,9 +337,6 @@ async function loadHistory(cursor) {
       share.addEventListener('click', () => shareInvoice({
         id: record._id,
         number: record.number,
-        to: record.to,
-        date: record.date,
-        totalText: money(record.totals.total, record.currency, record.totals.scale),
         statusId: 'history-status',
         button: share
       }));
@@ -429,31 +427,39 @@ $('preview').addEventListener('click', () => {
   if (invoice.terms) target.append(printField('Terms',invoice.terms));
   $('preview-dialog').showModal();
 });
-async function shareInvoice({id, number, to, date, totalText, statusId, button}) {
-  const url = id ? new URL('?invoice=' + encodeURIComponent(id), location.origin).href : '';
-  const customer = to ? to.split('\n')[0] : '';
-  const summary = ['Invoice #' + number, customer && 'Customer: ' + customer, date && 'Date: ' + date, totalText && 'Total: ' + totalText].filter(Boolean).join('\n');
+async function shareInvoice({id, invoice, totals, number, statusId, button}) {
+  if (button) button.disabled = true;
+  if (statusId) status('Preparing PDF…', false, statusId);
   try {
-    if (navigator.share) {
-      await navigator.share({title:'Invoice #' + number, text:summary, ...(url ? {url} : {})});
-      if (statusId) status('Invoice shared.', false, statusId);
+    const full = invoice || await request('/' + id);
+    const pdfTotals = totals || full.totals;
+    const file = await createInvoicePdf(full, pdfTotals);
+    if (navigator.canShare?.({files:[file]})) {
+      await navigator.share({title:'Invoice #' + (full.number || number), files:[file]});
+      if (statusId) status('Invoice PDF shared.', false, statusId);
       return;
     }
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(url || summary);
-      if (statusId) status(url ? 'Invoice link copied to clipboard.' : 'Invoice summary copied to clipboard.', false, statusId);
-      if (button) {
-        const textNode = button.querySelector('.btn-label') || button;
-        const label = textNode.textContent;
-        textNode.textContent = url ? 'Copied!' : 'Copied';
-        setTimeout(() => { if (textNode.textContent.startsWith('Copied')) textNode.textContent = label; }, 1800);
-      }
-      return;
+    const href = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = file.name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
+    if (statusId) status('Invoice PDF downloaded.', false, statusId);
+    if (button) {
+      const textNode = button.querySelector('.btn-label') || button;
+      const label = textNode.textContent;
+      textNode.textContent = 'PDF saved';
+      setTimeout(() => { if (textNode.textContent === 'PDF saved') textNode.textContent = label; }, 1800);
     }
-    if (statusId) status('Sharing is not supported in this browser.', true, statusId);
   } catch (error) {
-    if (error?.name === 'AbortError') return;
-    if (statusId) status('Could not share invoice.', true, statusId);
+    if (error?.name === 'AbortError') {
+      if (statusId) status('', false, statusId);
+      return;
+    }
+    if (statusId) status(error.message || 'Could not share invoice PDF.', true, statusId);
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
@@ -462,11 +468,8 @@ $('share').addEventListener('click', () => {
   const invoice = data();
   const totals = calculate(invoice);
   shareInvoice({
-    id: current?.id,
-    number: invoice.number,
-    to: invoice.to,
-    date: invoice.date,
-    totalText: money(totals.total, invoice.currency, totals.scale),
+    invoice,
+    totals,
     button: $('share')
   });
 });
