@@ -1,6 +1,6 @@
 const imageCache = new Map();
 
-async function loadImage(src) {
+async function loadImage(src, maxDim = 420) {
   if (!src) return null;
   if (imageCache.has(src)) return imageCache.get(src);
   const loaded = await new Promise(resolve => {
@@ -8,11 +8,19 @@ async function loadImage(src) {
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
+        const nw = img.naturalWidth || 1;
+        const nh = img.naturalHeight || 1;
+        const scale = Math.min(1, maxDim / Math.max(nw, nh));
+        const w = Math.max(1, Math.round(nw * scale));
+        const h = Math.max(1, Math.round(nh * scale));
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || 1;
-        canvas.height = img.naturalHeight || 1;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        resolve({dataUrl:canvas.toDataURL('image/png'), width:canvas.width, height:canvas.height});
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve({dataUrl:canvas.toDataURL('image/jpeg', 0.85), width:w, height:h});
       } catch {
         resolve(null);
       }
@@ -49,7 +57,7 @@ export function buildInvoicePdf(invoice, totals) {
   const JsPDF = window.jspdf?.jsPDF;
   if (!JsPDF) throw new Error('PDF generator is still loading. Try again.');
 
-  const doc = new JsPDF({unit:'pt', format:'a4'});
+  const doc = new JsPDF({unit:'pt', format:'a4', compress:true});
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 40;
@@ -64,7 +72,7 @@ export function buildInvoicePdf(invoice, totals) {
     const size = Math.min(contentWidth * 0.72, 360);
     doc.saveGraphicsState();
     doc.setGState(new doc.GState({opacity:0.04}));
-    doc.addImage(watermark.dataUrl, 'PNG', (pageWidth - size) / 2, (pageHeight - size) / 2, size, size);
+    doc.addImage(watermark.dataUrl, 'JPEG', (pageWidth - size) / 2, (pageHeight - size) / 2, size, size, undefined, 'FAST');
     doc.restoreGraphicsState();
   };
 
@@ -77,13 +85,13 @@ export function buildInvoicePdf(invoice, totals) {
   if (wordmark) {
     const h = 34;
     const w = (wordmark.width / wordmark.height) * h;
-    doc.addImage(wordmark.dataUrl, 'PNG', logoX, y, w, h);
+    doc.addImage(wordmark.dataUrl, 'JPEG', logoX, y, w, h, undefined, 'FAST');
     logoX += w + 12;
   }
   if (extraLogo) {
     const h = 34;
     const w = Math.min((extraLogo.width / extraLogo.height) * h, 110);
-    doc.addImage(extraLogo.dataUrl, 'PNG', logoX, y, w, h);
+    doc.addImage(extraLogo.dataUrl, 'JPEG', logoX, y, w, h, undefined, 'FAST');
   }
 
   doc.setTextColor(32, 35, 24);
